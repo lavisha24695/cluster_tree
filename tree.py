@@ -11,10 +11,12 @@ Tree-Clustering Algorithm
 4. Determine connected components. This is done implicitly while coloring. Note that all white nodes are leaves.
     Similarly because of the trimming, all black nodes are also leaves. All parents are grey in color. Hence each of the
     black and white nodes returned by color_tree are the largest black and white connected components respectively.
-5. Determine subgraphs
+5. Determine subgraphs. Merge subgraphs based on the repetitions dictionary.
+6. Visualise black and white subgraphs and evaluate the correctness of subgraph formation. Interestingly we get almostas many
+    black subgraphs as there are clusters in there are clusters
+
 TODO:
-6. Merge subgraphs based on repetitions dictionary, and visualise to evaluate the correctness of subgraph formation
-7. Hierarchical clusters with increasing threshold distances
+7. Hierarchical clusters/Erosion/Dilation with increasing threshold distances
 """
 
 import numpy as np
@@ -148,12 +150,14 @@ def color_tree(root):
     return parents
 
 def update_dict(dictionary, val1, val2):
+
     if val1 in dictionary:
         if val2 not in dictionary[val1]:
             dictionary[val1].append(val2)
     else:
         dictionary[val1] = [val2]
     return dictionary
+
 
 def find_subgraphs(root, L):
     """
@@ -174,6 +178,8 @@ def find_subgraphs(root, L):
     stack.put(root)
     subgraph_num = 0
     repetitions = {}
+    subgraph_list = []
+    subgraph_color = []
     while stack.empty() == False:
         temp = stack.get()
         print('Stack - ', temp.val)
@@ -188,7 +194,10 @@ def find_subgraphs(root, L):
                 """Start a BFS for a subgraph formation for this node"""
                 q = queue.Queue(maxsize=0)
                 subgraph_num +=1
+                subgraph_list.append({})
                 temp.subgraph = subgraph_num
+                subgraph_color.append(temp.color)
+                subgraph_list[subgraph_num-1][tuple(temp.val)] = temp.level
                 q.put(temp)
                 while q.empty() == False:
                     ptr = q.get()
@@ -201,6 +210,7 @@ def find_subgraphs(root, L):
                             repetitions = update_dict(repetitions, nbr.subgraph, subgraph_num)
                         elif nbr.color == ptr.color:
                             nbr.subgraph = subgraph_num
+                            subgraph_list[subgraph_num-1][tuple(nbr.val)] = nbr.level
                             q.put(nbr)
                 """Hopefully the subgraph for that specific node has been created"""
                 temp.aux = None
@@ -229,7 +239,7 @@ def find_subgraphs(root, L):
                 temp.index = 0
                 stack.get()
 
-    return [subgraph_num, repetitions]
+    return [subgraph_num, repetitions, subgraph_list, subgraph_color]
 
 class node:
     def __init__(self, val, level):
@@ -345,6 +355,22 @@ class node:
                 neighbors_list.append(root.find_node(neighbor_val))
         return neighbors_list
 
+
+def unique_subgraphs(subgraph_num, repetitions):
+
+    R = np.identity(subgraph_num)
+    for subgraph in repetitions:
+        for others in repetitions[subgraph]:
+            R[subgraph - 1, others - 1] = 1
+            R[others - 1, subgraph - 1] = 1
+    subgraph_map = {}
+    for i in range(len(R)):
+        map = np.nonzero(R[i])
+        subgraph_map[i] = np.min(map)
+    unique_subgraphs = set(val for val in subgraph_map.values())
+    print(unique_subgraphs, subgraph_map)
+    return subgraph_map
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
@@ -367,6 +393,8 @@ if __name__ == "__main__":
     L = math.ceil(math.log2(val))
     logger.info('n = %d d = %d val = %d L = %d',len(data), len(data[0]), val, L )
 
+    plt.figure(1)
+    plt.plot(np.array(data)[:,0], np.array(data)[:,1], 'k.')
     head = build_tree(data, L)
     black_leaves = np.array(head.traverse_tree())
     # plt.plot(black_leaves[:,0], black_leaves[:,1], 'r.')
@@ -382,9 +410,34 @@ if __name__ == "__main__":
     # black = np.array([key for key in black.keys()])
     # grey = np.array([key for key in grey.keys()])
     # plt.figure(2)
-    # plt.plot(grey[:,0], grey[:,1], 'g.')
-    # # plt.plot(black[:,0], black[:,1], 'k.', white[:,0], white[:,1], 'y.', grey[:,0], grey[:,1], 'g.')
-    print(len(black))
-    [subgraph_num, repetitions] = find_subgraphs(head, L)
-    print(subgraph_num, repetitions)
-    # plt.show()
+    # # plt.plot(grey[:,0], grey[:,1], 'g.')
+    # plt.plot(black[:,0], black[:,1], 'k.', white[:,0], white[:,1], 'y.', grey[:,0], grey[:,1], 'g.')
+    # print(len(black))
+    [subgraph_num, repetitions, subgraph_list, subgraph_color] = find_subgraphs(head, L)
+    subgraph_map = unique_subgraphs(subgraph_num, repetitions)
+
+    plt.figure(3)
+    # mycolors = ['b', 'r', 'm', 'y', 'g', 'grey', 'c', 'k', 'peru', 'plum', 'orchid', 'tan', 'silver']
+    # color_ind = 0
+    subgraph_color_ind = {}
+
+    for i in range(len(subgraph_list)):
+        col = np.random.rand(3, )
+        subgraph_color_ind[i] = col
+
+    for i in range(len(subgraph_list)):
+        "This is a dictionary of center:level, hence size L-level"
+        subgraph = subgraph_list[i]
+        # if subgraph_color[i]!=1:
+        #     continue
+        # col = np.random.rand(3, )
+        # col = mycolors[color_ind]
+        # color_ind +=1
+        col = subgraph_color_ind[subgraph_map[i]]
+        for point in subgraph:
+            side = 2**(L-subgraph[point])*2
+            plt.scatter(point[0], point[1], marker="s", c = col, s = side*side)
+
+    # print("No of black subgraphs", color_ind)
+    plt.show()
+
