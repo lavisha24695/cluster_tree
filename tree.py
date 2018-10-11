@@ -11,12 +11,25 @@ Tree-Clustering Algorithm
 4. Determine connected components. This is done implicitly while coloring. Note that all white nodes are leaves.
     Similarly because of the trimming, all black nodes are also leaves. All parents are grey in color. Hence each of the
     black and white nodes returned by color_tree are the largest black and white connected components respectively.
-5. Determine subgraphs. Merge subgraphs based on the repetitions dictionary.
-6. Visualise black and white subgraphs and evaluate the correctness of subgraph formation. Interestingly we get almostas many
+5. Analyse the black and white connected components by plotting hypercube centers in their respective sizes (depth).
+   Also plot histogram of black and white leaves (connected component) sizes
+6. Determine subgraphs. Merge subgraphs based on the repetitions dictionary.
+7. Visualise black and white subgraphs and evaluate the correctness of subgraph formation. Interestingly we get almostas many
     black subgraphs as there are clusters in there are clusters
 
 TODO:
-7. Hierarchical clusters/Erosion/Dilation with increasing threshold distances
+11. Hierarchical clusters/Erosion/Dilation with increasing threshold distances
+
+
+
+- Basically these subgraphs are the lowest level i.e. most finest clusters, just next to individual points
+- If we keep increasing the radius, we will get more coarser clusters
+- Read copy and text message from him
+- How does erosion and dilation come into the picture
+- I didn't understand why we want to largets white node / all nC2 boundaries between all pairs of black nodes
+- Have to clarify this distinctions -- that by black connected components we mean that connected in the graph or if there exists a path of all black nodes between
+2 nodes then they will be part of a connected component. As opposed to black subgraph where there may not be a path of all black nodes between 2 black points but they
+share an edge/face for 3D to be part of a subgraph
 """
 
 import numpy as np
@@ -27,7 +40,7 @@ import queue
 
 def child_location(parent, point):
     """
-    Compares the value of parent and parent to determine in which child will the point lie
+    Compares the value of parent and point to determine in which child will the point lie
     :param parent: Parent center, list of d numbers
     :param point: Data point value, list of d numbers
     :return: Number of the child hypercube where the point will lie
@@ -134,7 +147,7 @@ def color_tree(root):
                     temp.parent.color = 2
             if temp.color == 1 and temp.children != None:
                 '''
-                Trim the tree and remove all children for Black parents. If do not want to trim, 
+                Trim the tree and remove all children for Black parents. If do not want to trim,
                 remove these if-do statements
                 '''
                 logger.debug('Trimming {}th black parent!'.format(trim))
@@ -142,6 +155,7 @@ def color_tree(root):
                 for child in temp.children:
                     parents[1].pop(tuple(child.val), "None")
                     del child
+                temp.children = None
 
             parents[temp.color][tuple(temp.val)] = len(temp.aux)
             temp.aux = None
@@ -149,7 +163,7 @@ def color_tree(root):
             q.get()
     return parents
 
-def update_dict(dictionary, val1, val2):
+def update_dict(dictionary, val2, val1):
 
     if val1 in dictionary:
         if val2 not in dictionary[val1]:
@@ -169,14 +183,14 @@ def find_subgraphs(root, L):
     expanding from B, we never reached A. To handle such cases, a dictionary of repetitions is returned which contains
     indexes of subgraphs which need to be merged.
     :param root: Root of the tree
-    :param L: Number of levels in tree, goes on from l = 0 till l = L
+    :param L: Number of levels in tree, the tree goes on from l = 0 till l = L
     :return: Number of subgraphs and whether there are any repetitions, i.e. different subgraph numbers but representing
-    the same subgraph and hence need to be merged.
+    the same subgraph and hence which need to be merged.
     """
     stack = queue.LifoQueue(maxsize=0)
     root.aux = [root.val]
     stack.put(root)
-    subgraph_num = 0
+    subgraph_num = -1
     repetitions = {}
     subgraph_list = []
     subgraph_color = []
@@ -186,7 +200,7 @@ def find_subgraphs(root, L):
         stack.put(temp)
         if temp.children == None:
             """Reached a leaf node. Start forming a sub-graph"""
-            if temp.subgraph!=0:
+            if temp.subgraph!=-1:
                 """Check that this node is part of some other subgraph"""
                 temp.aux = None
                 stack.get()
@@ -197,20 +211,27 @@ def find_subgraphs(root, L):
                 subgraph_list.append({})
                 temp.subgraph = subgraph_num
                 subgraph_color.append(temp.color)
-                subgraph_list[subgraph_num-1][tuple(temp.val)] = temp.level
+                subgraph_list[subgraph_num][tuple(temp.val)] = temp.level
+                print('list', subgraph_list)
+                print('color', subgraph_color)
+                print('subgraph_num', subgraph_num)
                 q.put(temp)
                 while q.empty() == False:
                     ptr = q.get()
-                    print('Queue', ptr.val)
+                    if ptr.color == 1:
+                        print('B Queue', ptr.val)
+                    else:
+                        print('W Queue', ptr.val)
                     all_nbrs = ptr.find_neighbors(L, root)
                     for nbr in all_nbrs:
                         if nbr.subgraph == ptr.subgraph:
                             continue
-                        elif nbr.color == ptr.color and nbr.subgraph != 0:
+                        elif nbr.color == ptr.color and nbr.subgraph != -1:
                             repetitions = update_dict(repetitions, nbr.subgraph, subgraph_num)
+                            print("Added into ", nbr.val, "'s subgraph ", nbr.subgraph, " my  subgraph num", subgraph_num)
                         elif nbr.color == ptr.color:
                             nbr.subgraph = subgraph_num
-                            subgraph_list[subgraph_num-1][tuple(nbr.val)] = nbr.level
+                            subgraph_list[subgraph_num][tuple(nbr.val)] = nbr.level
                             q.put(nbr)
                 """Hopefully the subgraph for that specific node has been created"""
                 temp.aux = None
@@ -218,7 +239,7 @@ def find_subgraphs(root, L):
         else:
             if temp.index < len(temp.children):
                 """This parent node has more children"""
-                while(temp.index < len(temp.children)) and temp.children[temp.index].subgraph!=0:
+                while(temp.index < len(temp.children)) and temp.children[temp.index].subgraph!=-1:
                     """Find the child which has not already been subgraphed"""
                     temp.index +=1
                 if temp.index < len(temp.children):
@@ -239,16 +260,18 @@ def find_subgraphs(root, L):
                 temp.index = 0
                 stack.get()
 
-    return [subgraph_num, repetitions, subgraph_list, subgraph_color]
+    return [subgraph_num+1, repetitions, subgraph_list, subgraph_color]
 
 class node:
     def __init__(self, val, level):
+        if level >L:
+            print("Received grwater than L=",L, level)
         self.val = val
         self.children = None# TODO: If possible change this to a numpy array of fixed length, as it's length is fixed
         self.parent = None
         self.color = 0
         self.level = level
-        self.subgraph = 0
+        self.subgraph = -1
         self.aux = None
         self.index = 0
         """aux and index used during traversal and coloring. aux saves path from root to the node. index stores the number of children 
@@ -328,6 +351,7 @@ class node:
         d = len(self.val)
         side_length = 2 ** (L - l)
         neighbors_list = []
+        print("For ", self.val, ' neighbors are:')
         for neighbor_num in range(d):
             binary_list = [0]*d
             binary_list[neighbor_num] = 1
@@ -341,7 +365,9 @@ class node:
                     break
                 neighbor_val.append(temp)
             if flag:
-                neighbors_list.append(root.find_node(neighbor_val))
+                found_nbr = root.find_node(neighbor_val)
+                print(found_nbr.val)
+                neighbors_list.append(found_nbr)
             '''Neighbors in the negative direction'''
             neighbor_val = []
             flag = 1
@@ -352,12 +378,13 @@ class node:
                     break
                 neighbor_val.append(temp)
             if flag:
-                neighbors_list.append(root.find_node(neighbor_val))
+                found_nbr = root.find_node(neighbor_val)
+                print(found_nbr.val)
+                neighbors_list.append(found_nbr)
         return neighbors_list
 
 
-def unique_subgraphs(subgraph_num, repetitions):
-
+def unique_subgraphs_wrong(subgraph_num, repetitions):
     R = np.identity(subgraph_num)
     for subgraph in repetitions:
         for others in repetitions[subgraph]:
@@ -371,10 +398,159 @@ def unique_subgraphs(subgraph_num, repetitions):
     print(unique_subgraphs, subgraph_map)
     return subgraph_map
 
+def unique_subgraphs2(subgraph_num, repetitions):
+    """First I find all incoming edges to all nodes"""
+    incoming = {}
+    for i in range(subgraph_num):
+        incoming[i] = []
+
+    for el in repetitions:
+        for others in repetitions[el]:
+            incoming[others].append(el)
+
+    merger = {}
+    for i in range(subgraph_num):
+        merger[i] = incoming[i]
+        if i in repetitions:
+            merger[i].extend(repetitions[i])
+
+    print("repetitions: ", repetitions)
+    print("incoming: ", incoming)
+    print("merger", merger)
+
+    visited = np.zeros((subgraph_num,1))
+    mynewset = []
+    count = -1
+    for node in merger:
+        if visited[node] == 1:
+            continue
+        q = queue.Queue(maxsize=0)
+        q.put(node)
+        visited[node] = 1
+        mynewset.append([])
+        count += 1
+        mynewset[count].append(node)
+        while q.empty() == False:
+            temp = q.get()
+            if temp in merger:
+                neighbors = merger[temp]
+                for nbr in neighbors:
+                    if visited[nbr] != 1:
+                        visited[nbr] = 1
+                        q.put(nbr)
+                        mynewset[count].append(nbr)
+
+    print("new # subgraphs: ", len(mynewset), "subgraphs", mynewset)
+    subgraph_map = {}
+    for subgraph in mynewset:
+        new_no = np.min(subgraph)
+        for s in subgraph:
+            subgraph_map[s] = new_no
+
+    print("subgraph_map", subgraph_map)
+    return subgraph_map
+
+
+    # R = np.identity(subgraph_num)
+    # for subgraph in repetitions:
+    #     for others in repetitions[subgraph]:
+    #         R[subgraph - 1, others - 1] = 1
+    #         R[others - 1, subgraph - 1] = 1
+    # subgraph_map = {}
+    # for i in range(len(R)):
+    #     map = np.nonzero(R[i])
+    #     subgraph_map[i] = np.min(map)
+    # unique_subgraphs = set(val for val in subgraph_map.values())
+    # print(unique_subgraphs, subgraph_map)
+    # return subgraph_map
+
+
+
+    """
+    To plot the black and whote connected components returned by the color_tree function
+    1. Make a scatter plot with the corresponding component size
+    2. Plot thr histogram of the number of components of each size
+    :param black: Dictionary of black leaves (connected components)
+    :param white: Dictionary of white leaves (connected components)
+    Plots them for analysis
+    """
+def analyse_conn_components(black, white):
+    plt.figure()
+    black_sizes = []
+    for black_comp in black:
+        dep = black[black_comp] - 1
+        side = (2 ** (L - dep)) * 5
+        plt.scatter(black_comp[0], black_comp[1], marker="s", c='k', s=side * side)
+        black_sizes.append(dep)
+
+    white_sizes = []
+    for white_comp in white:
+        dep = white[white_comp] - 1
+        side = (2 ** (L - dep)) * 5
+        plt.scatter(white_comp[0], white_comp[1], marker="s", c='r', s=side * side)
+        white_sizes.append(dep)
+
+    plt.figure()
+    white_histogram = np.histogram(white_sizes, bins=np.arange(L+2))
+    plt.bar(np.arange(L + 1), white_histogram[0])
+    plt.title('White components histogram')
+    print(white_histogram)
+    #
+    plt.figure()
+    black_histogram = np.histogram(black_sizes, bins=np.arange(L + 2))
+    plt.bar(np.arange(L + 1), black_histogram[0])
+    plt.title('Black components histogram')
+    print(black_histogram)
+
+    # This code just plots all black, white, grey components with black, yellow, green dots
+    # white = np.array([key for key in white.keys()])
+    # black = np.array([key for key in black.keys()])
+    # grey = np.array([key for key in grey.keys()])
+    # plt.figure()
+    # plt.plot(black[:,0], black[:,1], 'k.', white[:,0], white[:,1], 'y.', grey[:,0], grey[:,1], 'g.')
+    # # print(len(black))
+
+def plot_subgraphs(subgraph_list, subgraph_map, subgraph_color):
+    plt.figure(3)
+    subgraph_color_ind = {}
+
+    for i in range(len(subgraph_list)):
+        col = np.random.rand(3, )
+        subgraph_color_ind[i] = col
+
+    white_sub = []
+    black_sub = []
+    visited_cols = []
+    used_cols = []
+    for i in range(len(subgraph_list)):
+        "This is a dictionary of center:level, hence size L-level"
+        subgraph = subgraph_list[i]
+        mapval = subgraph_map[i]
+        if subgraph_color[i] != 1:
+            if mapval not in visited_cols:
+                white_sub.append(mapval)
+            # white_sub.append(subgraph_map[i])
+            # continue
+        else:
+            if mapval not in visited_cols:
+                black_sub.append(mapval)
+            # black_sub.append(subgraph_map[i])
+        visited_cols.append(mapval)
+        col = subgraph_color_ind[mapval]
+        used_cols.append(mapval)
+        for point in subgraph:
+            side = (2 ** (L - subgraph[point])) * 4
+            plt.scatter(point[0], point[1], marker="s", c=col, s=side * side)
+
+    print("No of black subgraphs", len(set(black_sub)), "No of white subgraphs", len(set(white_sub)))
+    print("used cols", len(set(used_cols)))
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     dataset = '/Users/lavisha/PycharmProjects/Project1/data_aggregation.txt'
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/data_crescents.txt'
     d = 2
     branch_factor = 2**d
     data_handle = open(dataset, "r")
@@ -384,7 +560,7 @@ if __name__ == "__main__":
     data = [[float(feature) for feature in example]for example in data]
     '''Scale and Quantize the data '''
     data = [[round(f) for f in example] for example in data]
-    # data = [[round(f * 10) for f in example] for example in data]
+    # data = [[example[0]+45, example[1]+17] for example in data]
     # data = [[2,2],[4,5],[7,8],[1,6],[7,3],[5,5],[8,5],[3,3],[4,6],[7,7]]
     val = 0
     for example in data:
@@ -393,8 +569,8 @@ if __name__ == "__main__":
     L = math.ceil(math.log2(val))
     logger.info('n = %d d = %d val = %d L = %d',len(data), len(data[0]), val, L )
 
-    plt.figure(1)
-    plt.plot(np.array(data)[:,0], np.array(data)[:,1], 'k.')
+    # plt.figure(1)
+    # plt.plot(np.array(data)[:,0], np.array(data)[:,1], 'k.')
     head = build_tree(data, L)
     black_leaves = np.array(head.traverse_tree())
     # plt.plot(black_leaves[:,0], black_leaves[:,1], 'r.')
@@ -403,41 +579,13 @@ if __name__ == "__main__":
     Above returned black nodes also correspond to black connected components B1, B2, ... Similarly white nodes correspond
     to white connected components W1, W2, ...
     '''
-    # print('black', black)
-    # print('white', white)
-    # print('grey', grey)
-    # white = np.array([key for key in white.keys()])
-    # black = np.array([key for key in black.keys()])
-    # grey = np.array([key for key in grey.keys()])
-    # plt.figure(2)
-    # # plt.plot(grey[:,0], grey[:,1], 'g.')
-    # plt.plot(black[:,0], black[:,1], 'k.', white[:,0], white[:,1], 'y.', grey[:,0], grey[:,1], 'g.')
-    # print(len(black))
+    print('black', black)
+    print('white', white)
+    print('grey', grey)
+    # analyse_conn_components(black, white)
+
     [subgraph_num, repetitions, subgraph_list, subgraph_color] = find_subgraphs(head, L)
-    subgraph_map = unique_subgraphs(subgraph_num, repetitions)
-
-    plt.figure(3)
-    # mycolors = ['b', 'r', 'm', 'y', 'g', 'grey', 'c', 'k', 'peru', 'plum', 'orchid', 'tan', 'silver']
-    # color_ind = 0
-    subgraph_color_ind = {}
-
-    for i in range(len(subgraph_list)):
-        col = np.random.rand(3, )
-        subgraph_color_ind[i] = col
-
-    for i in range(len(subgraph_list)):
-        "This is a dictionary of center:level, hence size L-level"
-        subgraph = subgraph_list[i]
-        # if subgraph_color[i]!=1:
-        #     continue
-        # col = np.random.rand(3, )
-        # col = mycolors[color_ind]
-        # color_ind +=1
-        col = subgraph_color_ind[subgraph_map[i]]
-        for point in subgraph:
-            side = 2**(L-subgraph[point])*2
-            plt.scatter(point[0], point[1], marker="s", c = col, s = side*side)
-
-    # print("No of black subgraphs", color_ind)
+    print("subgraph_num",subgraph_num, "len(subgraph_list)",len(subgraph_list), "len(subgraph_color)",len(subgraph_color) )
+    subgraph_map = unique_subgraphs2(subgraph_num, repetitions)
+    plot_subgraphs(subgraph_list, subgraph_map, subgraph_color)
     plt.show()
-
