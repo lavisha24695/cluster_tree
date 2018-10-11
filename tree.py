@@ -24,9 +24,8 @@ TODO:
 
 - Basically these subgraphs are the lowest level i.e. most finest clusters, just next to individual points
 - If we keep increasing the radius, we will get more coarser clusters
-- Read copy and text message from him
 - How does erosion and dilation come into the picture
-- I didn't understand why we want to largets white node / all nC2 boundaries between all pairs of black nodes
+- I didn't understand why we want to get the largest white node / all nC2 boundaries between all pairs of black nodes
 - Have to clarify this distinctions -- that by black connected components we mean that connected in the graph or if there exists a path of all black nodes between
 2 nodes then they will be part of a connected component. As opposed to black subgraph where there may not be a path of all black nodes between 2 black points but they
 share an edge/face for 3D to be part of a subgraph
@@ -546,11 +545,75 @@ def plot_subgraphs(subgraph_list, subgraph_map, subgraph_color):
     print("used cols", len(set(used_cols)))
 
 
+def assign_merged_subgraph_labels(root, subgraph_map):
+    """
+    Traverse the tree using a stack for Breadth First Search and assign the refined subgraph number
+    :return: Black leaves
+    """
+    unique_subgraph_nums = list(set(subgraph_map.values()))
+    newmap = {}
+    for i in range(len(unique_subgraph_nums)):
+        sub_num = unique_subgraph_nums[i]
+        newmap[sub_num] = i
+
+    q = queue.LifoQueue(maxsize=0)
+    q.put(root)
+    while q.empty() == False:
+        temp = q.get()
+        q.put(temp)
+        if temp.children == None:
+            """Reached leaf node"""
+            oldnum = temp.subgraph
+            temp.subgraph = newmap[subgraph_map[oldnum]]
+            q.get()
+        else:
+            if temp.index < len(temp.children):
+                """Un-traversed children still there"""
+                child = temp.children[temp.index]
+                temp.index += 1
+                q.put(child)
+            else:
+                """All children traversed"""
+                temp.index = 0
+                q.get()
+    return root, len(unique_subgraph_nums)
+
+def find_plot_subgraphs(root, nsubgraph):
+    graphs = []
+    graphs_c = []
+    for i in range(nsubgraph):
+        graphs.append({})
+        graphs_c.append(-1)
+
+    q = queue.LifoQueue(maxsize=0)
+    q.put(root)
+    while q.empty() == False:
+        temp = q.get()
+        q.put(temp)
+        if temp.children == None:
+            """Reached leaf node"""
+            g = temp.subgraph
+            graphs[g][tuple(temp.val)] = temp.level
+            if graphs_c[g]!=-1 and graphs_c[g]!=temp.color:
+                print("Conflict in prev subgraph color!")
+            graphs_c[g] = temp.color
+            q.get()
+        else:
+            if temp.index < len(temp.children):
+                """Un-traversed children still there"""
+                child = temp.children[temp.index]
+                temp.index += 1
+                q.put(child)
+            else:
+                """All children traversed"""
+                temp.index = 0
+                q.get()
+    return graphs, graphs_c
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
-    dataset = '/Users/lavisha/PycharmProjects/Project1/data_aggregation.txt'
-    # dataset = '/Users/lavisha/PycharmProjects/Project1/data_crescents.txt'
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/data_aggregation.txt'
+    dataset = '/Users/lavisha/PycharmProjects/Project1/data_crescents.txt'
     d = 2
     branch_factor = 2**d
     data_handle = open(dataset, "r")
@@ -560,7 +623,7 @@ if __name__ == "__main__":
     data = [[float(feature) for feature in example]for example in data]
     '''Scale and Quantize the data '''
     data = [[round(f) for f in example] for example in data]
-    # data = [[example[0]+45, example[1]+17] for example in data]
+    data = [[example[0]+45, example[1]+17] for example in data]
     # data = [[2,2],[4,5],[7,8],[1,6],[7,3],[5,5],[8,5],[3,3],[4,6],[7,7]]
     val = 0
     for example in data:
@@ -587,5 +650,22 @@ if __name__ == "__main__":
     [subgraph_num, repetitions, subgraph_list, subgraph_color] = find_subgraphs(head, L)
     print("subgraph_num",subgraph_num, "len(subgraph_list)",len(subgraph_list), "len(subgraph_color)",len(subgraph_color) )
     subgraph_map = unique_subgraphs2(subgraph_num, repetitions)
-    plot_subgraphs(subgraph_list, subgraph_map, subgraph_color)
+    # subgraph_map represents the true correspondence of the different subgraph numbers to merged ones. Hence subgraph num
+    # of a node  = subgraph_map[node.subgraph]
+    # plot_subgraphs(subgraph_list, subgraph_map, subgraph_color)
+
+    head, nsubgraphs = assign_merged_subgraph_labels(head, subgraph_map)
+    graphs, graphs_c = find_plot_subgraphs(head, nsubgraphs)
+    print(len(graphs))
+    for i in range(nsubgraphs):
+        col = np.random.rand(3, )
+        g = graphs[i]#g is a dictionary
+        for pt in g:
+            side = (2 ** (L - g[pt])) * 4
+            plt.scatter(pt[0], pt[1], marker="s", c=col, s=side * side)
+
+
+
+
+
     plt.show()
