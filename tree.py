@@ -17,8 +17,10 @@ Tree-Clustering Algorithm
 7. Visualise black and white subgraphs and evaluate the correctness of subgraph formation. Interestingly we get almostas many
     black subgraphs as there are clusters in there are clusters
 
+
 TODO:
-8. Clean code
+8. Write about adding break into pieces, find boundaries and cluster hierarchy
+9. Clean code
 
 - Basically these subgraphs are the lowest level i.e. most finest clusters, just next to individual points
 - If we keep increasing the radius, we will get more coarser clusters
@@ -887,8 +889,8 @@ def find_next_subgraphs(all_graphs, graphs_c, L, root, h_num):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
-    # dataset = '/Users/lavisha/PycharmProjects/Project1/data_aggregation.txt'
-    dataset = '/Users/lavisha/PycharmProjects/Project1/data_crescents.txt'
+    dataset = '/Users/lavisha/PycharmProjects/Project1/data_aggregation.txt'
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/data_crescents.txt'
     d = 2
     branch_factor = 2**d
     data_handle = open(dataset, "r")
@@ -898,7 +900,7 @@ if __name__ == "__main__":
     data = [[float(feature) for feature in example]for example in data]
     '''Scale and Quantize the data '''
     data = [[round(f) for f in example] for example in data]
-    data = [[example[0]+45, example[1]+17] for example in data]
+    # data = [[example[0]+45, example[1]+17] for example in data]
     # data = [[2,2],[4,5],[7,8],[1,6],[7,3],[5,5],[8,5],[3,3],[4,6],[7,7]]
     val = 0
     for example in data:
@@ -921,7 +923,7 @@ if __name__ == "__main__":
     print('white', white)
     print('grey', grey)
     # analyse_conn_components(black, white)
-
+    #
     [subgraph_num, repetitions0, subgraph_list, subgraph_color] = find_subgraphs(head, L)
     print("subgraph_num",subgraph_num, "len(subgraph_list)",len(subgraph_list), "len(subgraph_color)",len(subgraph_color) )
     subgraph_map = unique_subgraphs2(subgraph_num, repetitions0)
@@ -1004,7 +1006,7 @@ if __name__ == "__main__":
             side = (2 ** (L - g[pt])) * 4
             plt.scatter(pt[0], pt[1], marker="s", c=col, s=side * side)
 
-    '''Now graphs2 contains subgraphs where white squares are broken into the smallest peices whereas black boundary peices 
+    '''Now graphs2 contains subgraphs where white squares are broken into the smallest peices whereas black boundary peices
     have been broken into smallest pieces'''
     graphs[0] = graphs2
     graphs_c[0] = graphs_c2
