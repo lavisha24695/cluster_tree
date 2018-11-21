@@ -36,6 +36,7 @@ import matplotlib.pyplot as plt
 import math
 import logging
 import queue
+from mpl_toolkits.mplot3d import Axes3D
 
 def child_location(parent, point):
     """
@@ -162,8 +163,6 @@ def color_tree(root):
             q.get()
     return parents
 
-
-
 def analyse_conn_components(black, white):
     """
         To plot the black and white connected components returned by the color_tree function
@@ -176,21 +175,44 @@ def analyse_conn_components(black, white):
         :param white:
         :return:
     """
-    plt.figure()
-    black_sizes = []
-    for black_comp in black:
-        dep = black[black_comp] - 1
-        side = (2 ** (L - dep)) * 5
-        plt.scatter(black_comp[0], black_comp[1], marker="s", c='k', s=side * side)
-        black_sizes.append(dep)
+    if d==2:
+        plt.figure()
+        black_sizes = []
+        for black_comp in black:
+            dep = black[black_comp] - 1
+            side = (2 ** (L - dep)) * blocksize
+            plt.scatter(black_comp[0], black_comp[1], marker="s", c='k', s=side * side)
+            black_sizes.append(dep)
 
-    white_sizes = []
-    for white_comp in white:
-        dep = white[white_comp] - 1
-        side = (2 ** (L - dep)) * 5
-        plt.scatter(white_comp[0], white_comp[1], marker="s", c='grey', s=side * side)
-        white_sizes.append(dep)
+        white_sizes = []
+        for white_comp in white:
+            dep = white[white_comp] - 1
+            side = (2 ** (L - dep)) * blocksize
+            plt.scatter(white_comp[0], white_comp[1], marker="s", c='grey', s=side * side)
+            white_sizes.append(dep)
 
+    elif d == 3:
+        # ranges = [0,5,10,15,20,25,30,35,40,45,50,55,60]
+        # for i in range(len(ranges)):
+        #     if i == 0:
+        #         continue
+            black_sizes = []
+            fig = plt.figure()
+            ax = plt.axes(projection='3d')
+            for black_comp in black:
+                dep = black[black_comp] - 1
+                side = (2 ** (L - dep)) * 5
+                # if black_comp[2]>ranges[i-1] and black_comp[2]<=ranges[i]:
+                ax.scatter(black_comp[0], black_comp[1], black_comp[2], c='k', marker="s")#,  s=side * side)
+                black_sizes.append(dep)
+
+            white_sizes = []
+            for white_comp in white:
+                dep = white[white_comp] - 1
+                side = (2 ** (L - dep)) * 5
+                # if white_comp[2] > ranges[i - 1] and white_comp[2] <= ranges[i]:
+                # ax.scatter(white_comp[0], white_comp[1], white_comp[2], c='grey',marker="s")#,  s=side * side)
+                white_sizes.append(dep)
     '''
     plt.figure()
     white_histogram = np.histogram(white_sizes, bins=np.arange(L + 2))
@@ -482,7 +504,7 @@ def traverse_get_neighbors(root):
 
 def numberToBase(n, b, d):
     '''
-    Takes an integet n and converts it to a list of numbers to the base of b. Makes sure that the list has d numbers
+    Takes an integer n and converts it to a list of numbers to the base of b. Makes sure that the list has d numbers
     '''
     if n == 0:
         return [0]*d
@@ -506,9 +528,17 @@ def getcenters(count, d):
         cc_list.append(rep)
     return cc_list
 
-def callf_allsize(ptr):
+def callf_allsize(ptr, create):
     '''For the given ptr, for each cubes circumscribing it, considers all points inside that cc_cube. If all points are white, returns a list of all those points,
     for all possible circumcubes.'''
+    '''We realize that in only 1 of the calls to this function callf_allsize from BFS1(for white nodes) the all_list returned by this list is used and added to the
+    list of white nodes. Hence, this flag called create tells, whether we need to break the square or not. Hence, if create is 1 and also we have found a possible big 
+    square i.e. size of len(all_size)>1 then we have to break it.'''
+    if ptr.subgraph !=-1:
+        print('OOPS')
+        return []
+    create = 0
+    '''for the time being just setting create = 0 for all cases, since otherwise it is running in an inifite loop'''
     all_list = []
     ptr_level = ptr.level
     side = 2**(L-ptr_level)
@@ -526,7 +556,7 @@ def callf_allsize(ptr):
         possible_points = getcenters(2*side, d)
         ccl = [x - side for x in cc_center]
         move = 0
-        print('cc center ', cc_center, ' ccl ', ccl)
+        # print('cc center ', cc_center, ' ccl ', ccl)
         for it2 in possible_points:
             pt_center = [sum(x)+0.5 for x in zip(it2, ccl)]
             for c in pt_center:
@@ -535,7 +565,7 @@ def callf_allsize(ptr):
                     break
             if move:
                 break
-            print('inpoint ', pt_center)
+            # print('inpoint ', pt_center)
             if tuple(pt_center) in seen and seen[tuple(pt_center)] == 0:
                 '''for this big cube, one of the child does not meet requirement hence move to next big cube'''
                 move = 1
@@ -563,9 +593,110 @@ def callf_allsize(ptr):
             # print("Found an all white CC cube ", locallist)
 
     print('From cc function ', len(all_list))
+
+
+    if create == 1 and len(all_list)>0:
+        '''This is being called from BFS1 and this square has the potential to form a big square. Hence, break the white nodes and only add that portion which
+        is actually part of the circumscribing cube.'''
+        final_list = redo_callf_task(ptr)
+        return final_list
+    else:
+        return all_list
+
+    return 0
+
+"""
+def redo_callf_task(ptr):
+    '''
+    
+    :param ptr: 
+    :return: 
+    '''
+    print('ENTERRRRRRRRRED THEEEEEE REDO FUNCTION')
+    all_list = []
+    ptr_level = ptr.level
+    side = 2 ** (L - ptr_level)
+    count = side + 1
+    ptr_center = ptr.val
+    edgel = [x - side / 2 for x in ptr_center]
+    cc_list = getcenters(count, d)
+    seen = {}
+    in_alllist = {}
+    print('DDD For ', ptr.val)
+    for item in cc_list:
+        cc_center = [sum(x) for x in zip(item, edgel)]
+        # Got a possible circumcube cente. Now traverse through each point lying in this circumcube and check if it is white or not
+        locallist = []
+        possible_points = getcenters(2 * side, d)
+        ccl = [x - side for x in cc_center]
+        move = 0
+        print('cc center ', cc_center, ' ccl ', ccl)
+        for it2 in possible_points:
+            pt_center = [sum(x) + 0.5 for x in zip(it2, ccl)]
+            for c in pt_center:
+                if c <= 0 or c >= 2 ** L:
+                    move = 1
+                    break
+            if move:
+                break
+            print('inpoint ', pt_center)
+            if tuple(pt_center) in seen and seen[tuple(pt_center)] == 0:
+                '''for this big cube, one of the child does not meet requirement hence move to next big cube'''
+                move = 1
+                break
+            elif tuple(pt_center) in seen and seen[tuple(pt_center)] == 1:
+                '''Hurray! this child meets requirements'''
+                newptr = head.find_node(pt_center)
+                locallist.append(newptr)
+            else:
+                newptr = head.find_node(pt_center)
+                if newptr.color == 0:
+                    '''Okay, now we need to check its size'''
+                    seen[tuple(pt_center)] = 1
+                    if newptr.level == L:
+                        locallist.append(newptr)
+                    else:
+                        '''if it is a bigger node then break it'''
+                        mylevel = newptr.level
+                        print('OKAY', mylevel, ptr_level)
+                        while mylevel<L and mylevel>ptr_level:
+                            '''create its children'''
+                            print('Breaking', newptr.val)
+                            parent_size = 2 ** (L - mylevel)
+                            newptr.create_children(parent_size, mylevel + 1)
+                            mylevel +=1
+                            print('Created level of children at', mylevel)
+                            child_num = child_location(newptr.val, pt_center)
+                            newptr = newptr.children[child_num]
+                            find_neighbors_all(newptr)
+                            print('reached', newptr.val)
+                        finalnewptr = head.find_node(pt_center)
+                        if finalnewptr.level>L:
+                            print('SOOOOOOOOOOOOOMMMMMMMMMMMMEEEEEEEEE Problem\n SOOOOOOOOOOOOOMMMMMMMMMMMMEEEEEEEEE Problem\n SOOOOOOOOOOOOOMMMMMMMMMMMMEEEEEEEEE Problem')
+                        locallist.append(finalnewptr)
+                        '''also find neighbors of this finalnewptr'''
+                        find_neighbors_all(finalnewptr)
+                else:
+                    move = 1
+                    seen[tuple(pt_center)] = 0
+                    break
+        if move == 0:
+            # alllist.extend(locallist)
+            # print('CCCC For ', ptr.val, ' circumcube at ', cc_center, ' list ', locallist)
+            for x in locallist:
+                if tuple(x.val) not in in_alllist:
+                    all_list.append(x)
+                    in_alllist[tuple(x.val)] = 1
+            # print("Found an all white CC cube ", locallist)
+
+    print('From cc function ', len(all_list))
     return all_list
 
 
+
+
+
+"""
 def callf(ptr):
     '''Returns an empty list if can't form a big hypercube. Else it returns a list of all nodes that can form the big hypercube(s)
     takes ptr --  which can be part'''
@@ -660,7 +791,8 @@ def BFS1(temp, subgraph_num, threshold, mustadd_elements):
                 q.put(nbr)
             elif nbr.color == 0 and nbr.level == threshold + 1:
                 """2nd big white node"""
-                circumsube_elements = callf_allsize(nbr)
+                print('call from bfs1')
+                circumsube_elements = callf_allsize(nbr,1)
                 for el in circumsube_elements:
                     el.subgraph = subgraph_num
                     q.put(el)
@@ -683,7 +815,8 @@ def BFS2(temp, subgraph_num, threshold):
                 continue
             elif nbr.color == 0 and nbr.level == threshold + 1:
                 '''Second big white node'''
-                circumcube_elements = callf_allsize(nbr)
+                print('call from bfs2')
+                circumcube_elements = callf_allsize(nbr,0)
                 if len(circumcube_elements) == 0:
                     '''This can't form a big white cube'''
                     nbr.subgraph = subgraph_num
@@ -743,7 +876,8 @@ def find_subgraphs(root, L, threshold):
                     subgraph_color.append(1)
                 elif temp.color == 0 and temp.level == threshold+1:
                     '''This is the next big sized white node'''
-                    circumcube_elements = callf_allsize(temp)
+                    print('call from find_subgraphs')
+                    circumcube_elements = callf_allsize(temp,0)
                     if len(circumcube_elements) == 0:
                         '''But this can not form a big white square hence consider as a black node'''
                         BFS2(temp, subgraph_num, threshold)
@@ -826,19 +960,34 @@ def traverse_get_subgraphs(root, nsubgraph):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
-    dataset = '/Users/lavisha/PycharmProjects/Project1/data_aggregation.txt'
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/data_aggregation.txt'
     # dataset = '/Users/lavisha/PycharmProjects/Project1/data_crescents.txt'
-    d = 2
-    D = 2
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/noisy_circles.txt'
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/noisy_moons.txt'
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/blobs.txt'
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/aniso.txt'
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/varied.txt'
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/no_structure.txt'
+    dataset = '/Users/lavisha/PycharmProjects/Project1/my3d.txt'
+    d = 3
+    D = 3
+    blocksize = 1
     branch_factor = 2**d
     data_handle = open(dataset, "r")
     data = data_handle.read().split('\n')[:-1]
     '''Ignore the 3rd component which represents cluster number.'''
     data = [eg.split()[:d] for eg in data]
-    data = [[float(feature) for feature in example]for example in data]
+    data = [[float(feature)*1.5 for feature in example]for example in data]
     '''Scale and Quantize the data '''
     data = [[round(f) for f in example] for example in data]
-    # data = [[example[0]+45, example[1]+17] for example in data]
+    # data = [[example[0]+45, example[1]+17] for example in data]#crescent
+    # data = [[example[0]+62, example[1]+60 ] for example in data]#noisy circles
+    # data = [[example[0] + 55, example[1] + 50] for example in data]  # noisy moons
+    # data = [[example[0] + 80, example[1] + 126] for example in data]  # blobs
+    # data = [[example[0] + 60, example[1] + 50] for example in data]  # aniso
+    # data = [[example[0] + 70, example[1] + 50] for example in data]  # varied
+    # data = [[example[0] + 10, example[1] + 10] for example in data]  # no_Structure
+    data = [[example[0] + 35, example[1] + 30, example[2] + 40] for example in data]
     # data = [[2,2],[4,5],[7,8],[1,6],[7,3],[5,5],[8,5],[3,3],[4,6],[7,7]]
     val = 0
     for example in data:
@@ -847,8 +996,15 @@ if __name__ == "__main__":
     L = math.ceil(math.log2(val))
     logger.info('n = %d d = %d val = %d L = %d',len(data), len(data[0]), val, L )
 
-    # plt.figure()
-    # plt.plot(np.array(data)[:,0], np.array(data)[:,1], 'k.')
+    if d == 2:
+        print('2d')
+        # plt.figure()
+        # plt.plot(np.array(data)[:,0], np.array(data)[:,1], 'k.')
+    elif d == 3:
+        plt.figure()
+        ax = plt.axes(projection='3d')
+        ax.scatter(np.array(data)[:,0], np.array(data)[:,1], np.array(data)[:,2])
+        print("max",np.max(np.array(data)[:,0]),np.max(np.array(data)[:,1]),np.max(np.array(data)[:,2]), "min",np.min(np.array(data)[:,0]),np.min(np.array(data)[:,1]),np.min(np.array(data)[:,2]))
     head = build_tree(data, L)
     black_leaves = np.array(head.traverse_tree())
     # plt.plot(black_leaves[:,0], black_leaves[:,1], 'r.')
@@ -861,41 +1017,54 @@ if __name__ == "__main__":
     print('black', black)
     print('white', white)
     print('grey', grey)
-    # analyse_conn_components(black, white)
+    analyse_conn_components(black, white)
+    print('Finding neighbors')
     traverse_get_neighbors(head)
+    print('Done with neighbors')
 
     [subgraph_num, subgraph_color] = find_subgraphs(head, L, 5)
     graphs2, graphs_c2 = traverse_get_subgraphs(head, subgraph_num)  # Traverse the tree and from there, get subgraph numbers for each node
 
     print(len(graphs2))
-    plt.figure()
+    fig = plt.figure()
     for i in range(subgraph_num):
         col = np.random.rand(3, )
         g = graphs2[i]  # g is a dictionary
         for pt in g:
-            side = (2 ** (L - g[pt])) * 4
+            side = (2 ** (L - g[pt])) * blocksize
             plt.scatter(pt[0], pt[1], marker="s", c=col, s=side * side)
-
-    print(subgraph_num, subgraph_color)
+    print(subgraph_num, sum(subgraph_color), subgraph_color)
 
     ##################
-    num_clusters = 50
+    num_clusters = 350
     cols = []
     # print('Detected ', num_clusters, ' clusters')
     for i in range(num_clusters):
         col = np.random.rand(3, )
         cols.append(col)
-    plt.figure()
-    cl_num = []
-    for i in range(len(data)):
-        # print(Y[i]+1)
-        data2 = [ex-0.5 for ex in data[i]]
-        y = head.find_node(data2).subgraph
-        if y not in cl_num:
-            cl_num.append(y)
-        # plt.scatter(data[i][0]- 45, data[i][1] - 17, s=3.5, c=cols[y])
-        plt.scatter(data[i][0], data[i][1], s=9, c=cols[y])
-    print('cl_num', cl_num)
-
-    #################
+    if d == 2:
+        plt.figure()
+        cl_num = []
+        for i in range(len(data)):
+            # print(Y[i]+1)
+            data2 = [ex-0.5 for ex in data[i]]
+            y = head.find_node(data2).subgraph
+            if y not in cl_num:
+                cl_num.append(y)
+            # plt.scatter(data[i][0]- 45, data[i][1] - 17, s=3.5, c=cols[y])
+            plt.scatter(data[i][0], data[i][1], s=9, c=cols[y])
+        print('cl_num', cl_num)
+    elif d == 3:
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+        cl_num = []
+        for i in range(len(data)):
+            data2 = [ex - 0.5 for ex in data[i]]
+            y = head.find_node(data2).subgraph
+            if y not in cl_num:
+                cl_num.append(y)
+            # plt.scatter(data[i][0]- 45, data[i][1] - 17, s=3.5, c=cols[y])
+            ax.scatter(data[i][0], data[i][1], data[i][2], c=cols[y])
+        print('cl_num', cl_num)
+    ##############
     plt.show()
