@@ -1016,6 +1016,8 @@ if __name__ == "__main__":
     to white connected components W1, W2, ...
     '''
 
+
+
     print('black', black)
     print('white', white)
     print('grey', grey)
