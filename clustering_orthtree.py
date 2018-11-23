@@ -961,38 +961,40 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     # dataset = '/Users/lavisha/PycharmProjects/Project1/data_aggregation.txt'
-    # dataset = '/Users/lavisha/PycharmProjects/Project1/data_crescents.txt'
+    dataset = '/Users/lavisha/PycharmProjects/Project1/data_crescents.txt'
     # dataset = '/Users/lavisha/PycharmProjects/Project1/noisy_circles.txt'
     # dataset = '/Users/lavisha/PycharmProjects/Project1/noisy_moons.txt'
     # dataset = '/Users/lavisha/PycharmProjects/Project1/blobs.txt'
     # dataset = '/Users/lavisha/PycharmProjects/Project1/aniso.txt'
     # dataset = '/Users/lavisha/PycharmProjects/Project1/varied.txt'
     # dataset = '/Users/lavisha/PycharmProjects/Project1/no_structure.txt'
-    dataset = '/Users/lavisha/PycharmProjects/Project1/my3d.txt'
-    d = 3
-    D = 3
+    # dataset = '/Users/lavisha/PycharmProjects/Project1/my3d.txt'
+    dataset = '/Users/lavisha/PycharmProjects/Project1/my3d_analysis_2.txt'
+    d = 2
+    D = d
     blocksize = 1
     branch_factor = 2**d
     data_handle = open(dataset, "r")
     data = data_handle.read().split('\n')[:-1]
     '''Ignore the 3rd component which represents cluster number.'''
     data = [eg.split()[:d] for eg in data]
-    data = [[float(feature)*1.5 for feature in example]for example in data]
+    data = [[float(feature)*1.4 for feature in example]for example in data]
     '''Scale and Quantize the data '''
     data = [[round(f) for f in example] for example in data]
-    # data = [[example[0]+45, example[1]+17] for example in data]#crescent
+    data = [[example[0]+45, example[1]+17] for example in data]#crescent
     # data = [[example[0]+62, example[1]+60 ] for example in data]#noisy circles
     # data = [[example[0] + 55, example[1] + 50] for example in data]  # noisy moons
     # data = [[example[0] + 80, example[1] + 126] for example in data]  # blobs
     # data = [[example[0] + 60, example[1] + 50] for example in data]  # aniso
     # data = [[example[0] + 70, example[1] + 50] for example in data]  # varied
     # data = [[example[0] + 10, example[1] + 10] for example in data]  # no_Structure
-    data = [[example[0] + 35, example[1] + 30, example[2] + 40] for example in data]
+    # data = [[example[0] + 35, example[1] + 30, example[2] + 40] for example in data]#3d
     # data = [[2,2],[4,5],[7,8],[1,6],[7,3],[5,5],[8,5],[3,3],[4,6],[7,7]]
     val = 0
     for example in data:
         if max(example)>val:
             val = max(example)
+    print(val)
     L = math.ceil(math.log2(val))
     logger.info('n = %d d = %d val = %d L = %d',len(data), len(data[0]), val, L )
 
@@ -1017,54 +1019,60 @@ if __name__ == "__main__":
     print('black', black)
     print('white', white)
     print('grey', grey)
-    analyse_conn_components(black, white)
-    print('Finding neighbors')
-    traverse_get_neighbors(head)
-    print('Done with neighbors')
 
-    [subgraph_num, subgraph_color] = find_subgraphs(head, L, 5)
-    graphs2, graphs_c2 = traverse_get_subgraphs(head, subgraph_num)  # Traverse the tree and from there, get subgraph numbers for each node
+    print('b = ', len(black), '  w = ', len(white), '   g = ',len(grey))
+    print('Total = ', len(black) + len(white) + len(grey), '  Nodes = ', len(data))
+    print('n = ', len(data), ' d = ', len(data[0]),' val = ',  val, ' L = ', L)
 
-    print(len(graphs2))
-    fig = plt.figure()
-    for i in range(subgraph_num):
-        col = np.random.rand(3, )
-        g = graphs2[i]  # g is a dictionary
-        for pt in g:
-            side = (2 ** (L - g[pt])) * blocksize
-            plt.scatter(pt[0], pt[1], marker="s", c=col, s=side * side)
-    print(subgraph_num, sum(subgraph_color), subgraph_color)
-
-    ##################
-    num_clusters = 350
-    cols = []
-    # print('Detected ', num_clusters, ' clusters')
-    for i in range(num_clusters):
-        col = np.random.rand(3, )
-        cols.append(col)
-    if d == 2:
-        plt.figure()
-        cl_num = []
-        for i in range(len(data)):
-            # print(Y[i]+1)
-            data2 = [ex-0.5 for ex in data[i]]
-            y = head.find_node(data2).subgraph
-            if y not in cl_num:
-                cl_num.append(y)
-            # plt.scatter(data[i][0]- 45, data[i][1] - 17, s=3.5, c=cols[y])
-            plt.scatter(data[i][0], data[i][1], s=9, c=cols[y])
-        print('cl_num', cl_num)
-    elif d == 3:
-        fig = plt.figure()
-        ax = plt.axes(projection='3d')
-        cl_num = []
-        for i in range(len(data)):
-            data2 = [ex - 0.5 for ex in data[i]]
-            y = head.find_node(data2).subgraph
-            if y not in cl_num:
-                cl_num.append(y)
-            # plt.scatter(data[i][0]- 45, data[i][1] - 17, s=3.5, c=cols[y])
-            ax.scatter(data[i][0], data[i][1], data[i][2], c=cols[y])
-        print('cl_num', cl_num)
-    ##############
-    plt.show()
+    # analyse_conn_components(black, white)
+    # print('Finding neighbors')
+    # traverse_get_neighbors(head)
+    # print('Done with neighbors')
+    #
+    # [subgraph_num, subgraph_color] = find_subgraphs(head, L, 5)
+    # graphs2, graphs_c2 = traverse_get_subgraphs(head, subgraph_num)  # Traverse the tree and from there, get subgraph numbers for each node
+    #
+    # print(len(graphs2))
+    # fig = plt.figure()
+    # for i in range(subgraph_num):
+    #     col = np.random.rand(3, )
+    #     g = graphs2[i]  # g is a dictionary
+    #     for pt in g:
+    #         side = (2 ** (L - g[pt])) * blocksize
+    #         plt.scatter(pt[0], pt[1], marker="s", c=col, s=side * side)
+    # print(subgraph_num, sum(subgraph_color), subgraph_color)
+    #
+    # ##################
+    # num_clusters = 350
+    # cols = []
+    # # print('Detected ', num_clusters, ' clusters')
+    # for i in range(num_clusters):
+    #     col = np.random.rand(3, )
+    #     cols.append(col)
+    # if d == 2:
+    #     plt.figure()
+    #     cl_num = []
+    #     for i in range(len(data)):
+    #         # print(Y[i]+1)
+    #         data2 = [ex-0.5 for ex in data[i]]
+    #         y = head.find_node(data2).subgraph
+    #         if y not in cl_num:
+    #             cl_num.append(y)
+    #         # plt.scatter(data[i][0]- 45, data[i][1] - 17, s=3.5, c=cols[y])
+    #         plt.scatter(data[i][0], data[i][1], s=9, c=cols[y])
+    #     print('cl_num', cl_num)
+    # elif d == 3:
+    #     fig = plt.figure()
+    #     ax = plt.axes(projection='3d')
+    #     cl_num = []
+    #     for i in range(len(data)):
+    #         data2 = [ex - 0.5 for ex in data[i]]
+    #         y = head.find_node(data2).subgraph
+    #         if y not in cl_num:
+    #             cl_num.append(y)
+    #         # plt.scatter(data[i][0]- 45, data[i][1] - 17, s=3.5, c=cols[y])
+    #         ax.scatter(data[i][0], data[i][1], data[i][2], c=cols[y])
+    #     print('cl_num', cl_num)
+    # #############
+    # logger.info('n = %d d = %d val = %d L = %d', len(data), len(data[0]), val, L)
+    # plt.show()
