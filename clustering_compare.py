@@ -12,6 +12,7 @@ from itertools import cycle, islice
 
 np.random.seed(0)
 
+
 # ============
 # Generate datasets. We choose the size big enough to see the scalability
 # of the algorithms, but not too big to avoid too long running times
